@@ -119,7 +119,7 @@ def ProxNestedSampling(X0, LikeliL, proxH, proxB, params, options):
 
     # Update samples using the proximal nested sampling technique
     for k in tqdm(range(NumDiscardSamples), desc="ProxNest || Sample"):
-        # Compute the smallest threshould wrt live samples' likelihood
+        # Compute the smallest threshold wrt live samples' likelihood
         tau = -Xtrace["LiveSetL"][-1]  # - 1e-2
 
         # Randomly select a sample in the live set as a starting point
