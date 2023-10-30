@@ -1,6 +1,6 @@
 import numpy as np
 from tqdm import tqdm
-import ProxNest.logs as lg
+import ProxNest.logs as log
 from . import resampling
 
 
@@ -32,7 +32,7 @@ def ProxNestedSampling(X0, LikeliL, proxH, proxB, params, options):
     Phi = params["Phi"]
     y = params["y"]
 
-    lg.info_log("Constructing lambda functions for resampling projections...")
+    log.info_log("Constructing lambda functions for resampling projections...")
 
     # Simulation setup
     # Use backward-forward splitting to approximate proxPi using proxH and gradF
@@ -62,7 +62,7 @@ def ProxNestedSampling(X0, LikeliL, proxH, proxB, params, options):
     Xcur = X0  # set initial state as current state
     tau_0 = -LikeliL(Xcur) * 1e-1
 
-    lg.info_log("Allocating memory and populating initial live-samples...")
+    log.info_log("Allocating memory and populating initial live-samples...")
 
     # Initialise arrays to store samples
     # Indexing: sample, likelihood, weights
@@ -110,7 +110,7 @@ def ProxNestedSampling(X0, LikeliL, proxH, proxB, params, options):
 
             j += 1
 
-    lg.info_log("Executing primary nested resampling iterations...")
+    log.info_log("Executing primary nested resampling iterations...")
 
     # Reorder samples TODO: Make this more efficient!
     Xtrace["LiveSet"], Xtrace["LiveSetL"] = resampling.reorder_samples(
@@ -153,7 +153,7 @@ def ProxNestedSampling(X0, LikeliL, proxH, proxB, params, options):
             Xtrace["LiveSet"], Xtrace["LiveSetL"]
         )
 
-    lg.info_log(
+    log.info_log(
         "Estimating Bayesian evidence (with variance), posterior probabilies, and posterior mean..."
     )
 
