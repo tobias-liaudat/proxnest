@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 
 def reorder_samples(samples, likelihood_values):
@@ -13,7 +14,6 @@ def reorder_samples(samples, likelihood_values):
 
     Notes:
         MATLAB version: Xiaohao Cai (30/01/2019)
-
         Python version: Matthew Price (10/05/2022)
     """
 
@@ -21,9 +21,14 @@ def reorder_samples(samples, likelihood_values):
     minSamIdx = np.argmin(likelihood_values)
 
     # swap the sample wit the smallest likelihood to the end of the list
-    tempSample = samples[minSamIdx]
-    samples[minSamIdx] = samples[-1]
-    samples[-1] = tempSample
+    if torch.is_tensor(samples[0]):
+        tempSample = samples[minSamIdx].clone()
+        samples[minSamIdx] = samples[-1].clone()
+        samples[-1] = tempSample
+    else:
+        tempSample = samples[minSamIdx]
+        samples[minSamIdx] = samples[-1]
+        samples[-1] = tempSample
 
     # swap the likelihood accordingly
     tempL = likelihood_values[minSamIdx]
@@ -31,3 +36,4 @@ def reorder_samples(samples, likelihood_values):
     likelihood_values[-1] = tempL
 
     return samples, likelihood_values
+
