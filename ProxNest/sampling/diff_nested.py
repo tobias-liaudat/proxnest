@@ -273,14 +273,14 @@ class DiffusionNestedSampling(torch.nn.Module):
                 self.Xtrace["Discard"][k] = self.Xtrace["LiveSet"][-1].clone()
                 self.Xtrace["DiscardL"][k] = self.Xtrace["LiveSetL"][-1].copy()
 
+                if self.options['wandb_vis']:
+                    wandb.log({"Discarded - log Likelihood value": - self.Xtrace["LiveSetL"][-1].copy()})
+
                 # Add the new sample to the live set and its likelihood
                 self.Xtrace["LiveSet"][-1] = self.Xcur.clone()
                 self.Xtrace["LiveSetL"][-1] = self.LogLikeliL(
                         self.Xcur, self.y, self.physics, self.diff_params['sigma_noise']
                     ).detach().cpu().numpy()
-                
-                if self.options['wandb_vis']:
-                    wandb.log({"Discarded - log Likelihood value": - self.Xtrace["LiveSetL"][-1].copy()})
 
                 if self.options['wandb_vis'] and self.options['wandb_vis_imgs']:
                     vis_Xcur = torch.clip(self.Xcur.clone(), 0, 1)
