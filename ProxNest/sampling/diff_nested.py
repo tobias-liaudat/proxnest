@@ -149,7 +149,7 @@ class DiffusionNestedSampling(torch.nn.Module):
                 # Record the current sample in the live set and its likelihood
                 self.Xtrace["LiveSet"][j] = self.Xcur.clone()
                 self.Xtrace["LiveSetL"][j] = self.LogLikeliL(
-                    self.Xcur, self.y, self.physics, self.diff_params['diffusion_steps']
+                    self.Xcur, self.y, self.physics, self.diff_params['sigma_noise']
                 ).detach().cpu().numpy()
 
 
@@ -209,7 +209,7 @@ class DiffusionNestedSampling(torch.nn.Module):
             # Add the new sample to the live set and its likelihood
             self.Xtrace["LiveSet"][-1] = self.Xcur.clone()
             self.Xtrace["LiveSetL"][-1] = self.LogLikeliL(
-                    self.Xcur, self.y, self.physics, self.diff_params['diffusion_steps']
+                    self.Xcur, self.y, self.physics, self.diff_params['sigma_noise']
                 ).detach().cpu().numpy()
             
 
