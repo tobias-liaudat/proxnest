@@ -1,3 +1,32 @@
+""" Helper functions 
+"""
+
+import datetime
+import yaml
+import json
+import types
+
+
+def load_object(dct):
+    return types.SimpleNamespace(**dct)
+
+def load_config(config_path):
+    with open(config_path, 'r') as f:
+        cfg = yaml.load(f, Loader=yaml.FullLoader)
+        cfg = json.loads(json.dumps(cfg), object_hook=load_object)
+
+    return cfg
+
+def log(*args, **kwargs):
+     print(
+        datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S:"),
+        *args,
+        **kwargs
+    )
+
+
+
+
 def create_parameters_dict(
     y=0,
     Phi=None,
