@@ -30,6 +30,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Ignore wandb dir
+wandb/
+
 # Distribution / packaging
 .Python
 build/
