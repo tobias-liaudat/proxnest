@@ -1,6 +1,6 @@
 import numpy as np
 from tqdm import tqdm
-import ProxNest.logs as log
+import ProxNest.utils.logs as log
 from . import resampling
 
 
