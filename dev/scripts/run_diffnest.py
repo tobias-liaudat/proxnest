@@ -1,17 +1,16 @@
 import os
+import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
-import deepinv as dinv
-from tqdm import tqdm
-from ProxNest.sampling import resampling
-import ProxNest as pxn
-import argparse
 import seaborn as sns
 sns.set()
 
 
 def main(config_path, device):
+    # I need to import these packages after selecting the GPU to be used
+    import deepinv as dinv
+    import ProxNest as pxn
 
     cfg = pxn.utils.utils.load_config(config_path)
 
