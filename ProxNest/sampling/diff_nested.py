@@ -1,9 +1,10 @@
 import numpy as np
 import torch
 from tqdm import tqdm
-import ProxNest.logs as log
+import ProxNest.utils.logs as log
 from . import resampling
 import deepinv as dinv
+import wandb
 
 
 class DummyDataFidelity(torch.nn.Module):
@@ -44,6 +45,24 @@ class DiffusionNestedSampling(torch.nn.Module):
         tau_0 = -self.LogLikeliL(
             self.Xcur, self.y, self.physics, self.diff_params['sigma_noise']
         ).cpu().numpy() * 1e-1
+
+        # Logging to wandb
+        if self.options['wandb_vis']:
+            wandb.login()
+            run = wandb.init(
+                # Set the project where this run will be logged
+                project=self.options['experiment'],
+                name=self.options['run_name'],
+                # Track hyperparameters and run metadata
+                config={
+                    "sigma": self.diff_params['sigma_noise'],
+                    "ISNR": self.options['ISNR'],
+                    "img_size": self.options['img_size'],
+                }
+            )
+
+        # Define sample to init diffusions
+        self.x_sample_init = None
 
         # Initialise arrays to store samples
         # Indexing: sample, likelihood, weights
@@ -116,6 +135,32 @@ class DiffusionNestedSampling(torch.nn.Module):
             device=device
         )
 
+        # Generate init sample
+        self._generate_init_sample()
+
+
+    def _generate_init_sample(self):
+        """Generate init sample from DiffPIR algorithm with L2 constraint
+        """
+        init_sampler = dinv.sampling.DiffPIR(
+            self.denoising_model,
+            sigma=self.diff_params['sigma_noise'],
+            max_iter=self.diff_params['diffusion_steps'],
+            lambda_=self.diff_params['lambda_'],
+            zeta=self.diff_params['zeta'], # 0.5s,
+            data_fidelity=dinv.optim.L2(),
+            verbose=self.options['verbose'],
+            device=self.device
+        )
+
+        self.x_sample_init = init_sampler.forward(
+            self.y, self.physics, x_init=self.x_init
+        )
+        self.x_sample_init_logLikeL = self.LogLikeliL(
+            self.x_sample_init, self.y, self.physics, self.diff_params['sigma_noise']
+        ).cpu().numpy()
+
+
 
     def update_likelihood_constraint(self, tau):
         """ Update constrained prior sampler with new likelihood constraint.
@@ -144,7 +189,7 @@ class DiffusionNestedSampling(torch.nn.Module):
             with torch.no_grad():
                 # Sample from the prior to generate live samples
                 self.Xcur = self.prior_sampler.forward(
-                    self.y, self.physics, x_init=self.x_init
+                    self.y, self.physics, x_init=self.x_sample_init
                 )
                 # Record the current sample in the live set and its likelihood
                 self.Xtrace["LiveSet"][j] = self.Xcur.clone()
@@ -152,68 +197,97 @@ class DiffusionNestedSampling(torch.nn.Module):
                     self.Xcur, self.y, self.physics, self.diff_params['sigma_noise']
                 ).detach().cpu().numpy()
 
+                if self.options['wandb_vis']:
+                    wandb.log({"Init live samples - log Likelihood value": - self.Xtrace["LiveSetL"][j].copy()})
+
+                if self.options['wandb_vis'] and self.options['wandb_vis_imgs']:
+                    vis_Xcur = torch.clip(self.Xcur.clone(), 0, 1)
+                    image = wandb.Image(
+                        vis_Xcur, caption="Init live samples n: {}".format(j)
+                    )
+                    wandb.log({"Init live samples": image})
+
 
     def evolve_samples(self):
-
         # Update samples using the proximal nested sampling technique
         for k in tqdm(range(self.NumDiscardSamples), desc="DiffNest || Sample"):
+            with torch.no_grad():
+                if self.options['wandb_vis']:
+                    wandb.log({"Discarded Sample num": k})
 
-            # Reorder samples TODO: Make this more efficient!
-            self.Xtrace["LiveSet"], self.Xtrace["LiveSetL"] = resampling.reorder_samples(
-                self.Xtrace["LiveSet"], self.Xtrace["LiveSetL"]
-            )
-
-            # Compute the smallest threshold wrt live samples' likelihood
-            tau = -self.Xtrace["LiveSetL"][-1]  # - 1e-2
-
-            # Randomly select a sample in the live set as a starting point
-            indNewSample = (
-                np.floor(np.random.rand() * (self.NumLiveSetSamples - 1)).astype(int) - 1
-            )
-            self.Xcur = self.Xtrace["LiveSet"][indNewSample]
-
-            # Update likelihood constraint
-            self.update_likelihood_constraint(tau)
-
-            # Sample from the constrained prior
-            self.Xcur = self.constrained_prior_sampler.forward(
-                self.y, self.physics, x_init=self.Xcur
-            )
-
-            # check if the new sample is inside l2-ball (metropolis-hasting); if
-            # not, force the new sample into L2-ball
-            if torch.nn.functional.mse_loss(
-                self.y, self.physics.A(self.Xcur), reduction='sum'
-            ) > (
-                tau * 2 * self.diff_params['sigma_noise']**2
-            ):
-                print('Explicitly enforcing L2 ball in MH step.')
-                indicatorL2 = dinv.optim.data_fidelity.IndicatorL2(
-                    radius=np.sqrt(
-                        tau * 2 * self.diff_params['sigma_noise']**2
-                    ).astype(np.float32) 
-                )
-                self.Xcur = indicatorL2.prox(
-                    x=self.Xcur,
-                    y=self.y,
-                    physics=self.physics,
-                    crit_conv=self.options['tol'],
-                    max_iter=self.options['max_iter'],
+                # Reorder samples TODO: Make this more efficient!
+                self.Xtrace["LiveSet"], self.Xtrace["LiveSetL"] = resampling.reorder_samples(
+                    self.Xtrace["LiveSet"], self.Xtrace["LiveSetL"]
                 )
 
+                # Compute the smallest threshold wrt live samples' likelihood
+                tau = -self.Xtrace["LiveSetL"][-1]  # - 1e-2
 
-            # Record the sample discarded and its likelihood
-            self.Xtrace["Discard"][k] = self.Xtrace["LiveSet"][-1].clone()
-            self.Xtrace["DiscardL"][k] = self.Xtrace["LiveSetL"][-1].copy()
+                # Randomly select a sample in the live set as a starting point
+                indNewSample = (
+                    np.floor(np.random.rand() * (self.NumLiveSetSamples - 1)).astype(int) - 1
+                )
+                self.Xcur = self.Xtrace["LiveSet"][indNewSample]
 
-            # Add the new sample to the live set and its likelihood
-            self.Xtrace["LiveSet"][-1] = self.Xcur.clone()
-            self.Xtrace["LiveSetL"][-1] = self.LogLikeliL(
+                # Update likelihood constraint
+                self.update_likelihood_constraint(tau)
+
+                # Compare likelihoods between samples and init sample
+                Xcur_logLikeL = self.LogLikeliL(
                     self.Xcur, self.y, self.physics, self.diff_params['sigma_noise']
                 ).detach().cpu().numpy()
-            
+
+                if (-Xcur_logLikeL) > (-self.x_sample_init_logLikeL):
+                    x_start = self.x_sample_init
+                else:
+                    x_start = self.Xcur
+
+                # Sample from the constrained prior
+                self.Xcur = self.constrained_prior_sampler.forward(
+                    self.y, self.physics, x_init=x_start
+                )
+
+                # check if the new sample is inside l2-ball (metropolis-hasting);
+                # if not, force the new sample into L2-ball
+                if torch.nn.functional.mse_loss(
+                    self.y, self.physics.A(self.Xcur), reduction='sum'
+                ) > (
+                    tau * 2 * self.diff_params['sigma_noise']**2
+                ):
+                    print('Explicitly enforcing L2 ball.')
+                    indicatorL2 = dinv.optim.data_fidelity.IndicatorL2(
+                        radius=np.sqrt(
+                            tau * 2 * self.diff_params['sigma_noise']**2
+                        ).astype(np.float32) 
+                    )
+                    self.Xcur = indicatorL2.prox(
+                        x=self.Xcur,
+                        y=self.y,
+                        physics=self.physics,
+                        crit_conv=self.options['tol'],
+                        max_iter=self.options['max_iter'],
+                    )
 
 
+                # Record the sample discarded and its likelihood
+                self.Xtrace["Discard"][k] = self.Xtrace["LiveSet"][-1].clone()
+                self.Xtrace["DiscardL"][k] = self.Xtrace["LiveSetL"][-1].copy()
+
+                # Add the new sample to the live set and its likelihood
+                self.Xtrace["LiveSet"][-1] = self.Xcur.clone()
+                self.Xtrace["LiveSetL"][-1] = self.LogLikeliL(
+                        self.Xcur, self.y, self.physics, self.diff_params['sigma_noise']
+                    ).detach().cpu().numpy()
+                
+                if self.options['wandb_vis']:
+                    wandb.log({"Discarded - log Likelihood value": - self.Xtrace["LiveSetL"][-1].copy()})
+
+                if self.options['wandb_vis'] and self.options['wandb_vis_imgs']:
+                    vis_Xcur = torch.clip(self.Xcur.clone(), 0, 1)
+                    image = wandb.Image(
+                        vis_Xcur, caption="New live samples n: {}".format(k)
+                    )
+                    wandb.log({"New live samples": image})
 
         # Reorder the live samples TODO: Make this more efficient!
         self.Xtrace["LiveSet"], self.Xtrace["LiveSetL"] = resampling.reorder_samples(
