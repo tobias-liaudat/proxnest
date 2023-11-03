@@ -33,6 +33,8 @@ __pycache__/
 # Ignore wandb dir
 wandb/
 
+tmp_storage/
+
 # Distribution / packaging
 .Python
 build/
