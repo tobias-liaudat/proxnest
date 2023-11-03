@@ -4,11 +4,12 @@ input_data_dir: /disk/xray0/tl3/project-nested-diffusion/proxnest/data/
 
 # Experiment name
 experiment: diffnest_blur_64_
-run_name: blur_long_run_1_
+run_name: blur_long_run_2_
 
 # Logging
 wandb_vis: True
 wandb_vis_imgs: True
+wandb_vis_imgs_freq: 5
 
 # Data
 img_size: 64
@@ -22,10 +23,10 @@ blur_kernel_size: 3
 
 
 # options - Nested sampling alg
-samplesL: 100
-samplesD: 3000
+samplesL: 1000
+samplesD: 20000
 tol: 1e-10
-max_iter: 200
+max_iter: 1000
 verbose: True
 # samplesL: Number of live samples
 # samplesD: Number of discarded samples 
@@ -38,9 +39,9 @@ verbose: True
 model_type: imagenet
 in_channels: 3
 out_channels: 3
-diffusion_steps: 100
+diffusion_steps: 50
 lambda_: 7.0
-zeta: 0.5
+zeta: 0.3
 
 # model_type: Type of pretrained model. Options are 'imagenet' or 'ffhq'
 # in_channels: Channels in the input Tensor.
