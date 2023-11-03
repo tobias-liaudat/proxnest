@@ -200,7 +200,13 @@ class DiffusionNestedSampling(torch.nn.Module):
                 if self.options['wandb_vis']:
                     wandb.log({"Init live samples - log Likelihood value": - self.Xtrace["LiveSetL"][j].copy()})
 
-                if self.options['wandb_vis'] and self.options['wandb_vis_imgs']:
+                if (
+                    self.options['wandb_vis']
+                ) and (
+                    self.options['wandb_vis_imgs']
+                ) and (
+                    j % self.options['wandb_vis_imgs_freq'] == 0
+                ):
                     vis_Xcur = torch.clip(self.Xcur.clone(), 0, 1)
                     image = wandb.Image(
                         vis_Xcur, caption="Init live samples n: {}".format(j)
@@ -282,7 +288,13 @@ class DiffusionNestedSampling(torch.nn.Module):
                         self.Xcur, self.y, self.physics, self.diff_params['sigma_noise']
                     ).detach().cpu().numpy()
 
-                if self.options['wandb_vis'] and self.options['wandb_vis_imgs']:
+                if (
+                    self.options['wandb_vis']
+                ) and (
+                    self.options['wandb_vis_imgs']
+                ) and (
+                    k % self.options['wandb_vis_imgs_freq'] == 0
+                ):
                     vis_Xcur = torch.clip(self.Xcur.clone(), 0, 1)
                     image = wandb.Image(
                         vis_Xcur, caption="New live samples n: {}".format(k)
@@ -373,6 +385,10 @@ class DiffusionNestedSampling(torch.nn.Module):
             self.Xtrace["DiscardPostMean"] = self.Xtrace["DiscardPostMean"] + (
                 self.Xtrace["DiscardPostProb"][k] * self.Xtrace["Discard"][k].clone()
             )
+
+        if self.options['wandb_vis']:
+            wandb.log({"Evidence": self.BayEvi[0].copy()})
+            wandb.log({"Evidence variance": self.BayEvi[1].copy()})
 
     
     def run(self):
