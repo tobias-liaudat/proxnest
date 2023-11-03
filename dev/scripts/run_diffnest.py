@@ -49,18 +49,19 @@ def main(config_path, device):
 
     # Options dictionary associated with the overall sampling algorithm
     options = {
-              'samplesL' : cfg.samplesL,        # Number of live samples
-              'samplesD' : cfg.samplesD,        # Number of discarded samples 
-                 'sigma' : sigma,               # Noise standard deviation of degraded image
-                   'tol' : float(cfg.tol),      # Convergence tolerance of algorithm (Ball projection alg)
-              'max_iter' : cfg.max_iter,        # Maximum number of iterations (Ball projection alg)
-               'verbose' : cfg.verbose,         # Verbosity
-                  'ISNR' : cfg.ISNR,            # Input SNR
-               'img_size': cfg.img_size,        # Input image size
-             'wandb_vis' : cfg.wandb_vis,       # Use wandb visualisation logger
-        'wandb_vis_imgs' : cfg.wandb_vis_imgs,  # Use wandb to visualise imgs
-            'experiment' : cfg.experiment,      # Experiment name
-              'run_name' : cfg.run_name,        # Run name
+                   'samplesL' : cfg.samplesL,               # Number of live samples
+                   'samplesD' : cfg.samplesD,               # Number of discarded samples 
+                      'sigma' : sigma,                      # Noise standard deviation of degraded image
+                        'tol' : float(cfg.tol),             # Convergence tolerance of algorithm (Ball projection alg)
+                   'max_iter' : cfg.max_iter,               # Maximum number of iterations (Ball projection alg)
+                    'verbose' : cfg.verbose,                # Verbosity
+                       'ISNR' : cfg.ISNR,                   # Input SNR
+                    'img_size': cfg.img_size,               # Input image size
+                  'wandb_vis' : cfg.wandb_vis,              # Use wandb visualisation logger
+             'wandb_vis_imgs' : cfg.wandb_vis_imgs,         # Use wandb to visualise imgs
+        'wandb_vis_imgs_freq' : cfg.wandb_vis_imgs_freq,    # Frequency to upload img to wandb
+                 'experiment' : cfg.experiment,             # Experiment name
+                   'run_name' : cfg.run_name,               # Run name
     }
 
     diff_params = {
