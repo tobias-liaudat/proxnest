@@ -321,6 +321,12 @@ class DiffusionNestedSampling(torch.nn.Module):
 
         k: int
             Current number of updated samples
+
+        Returns
+        -------
+        CurrBayEvi: list[float, float]
+            Current evidence calculation. The first element is the evidence,
+            and the second one the evidence variance
         """
         CurrNumDiscardSamples = k
         # Init samples
@@ -376,7 +382,7 @@ class DiffusionNestedSampling(torch.nn.Module):
         # Compute the Bayesian evidence value using discarded and living samples
         CurrBayEvi[0] = maxDiscardLLen + np.log(np.sum(np.exp(vecDiscardLLen - maxDiscardLLen)))
 
-        # Extimate the error of the computed Bayesian evidence
+        # Estimate the error of the computed Bayesian evidence
         entropyH = 0
 
         for j in range(CurrNumDiscardSamples):
