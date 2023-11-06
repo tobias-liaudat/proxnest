@@ -182,14 +182,18 @@ class DiffusionNestedSampling(torch.nn.Module):
 
 
     def init_live_samples(self):
-        # Compute initialisation based on the observations
-
         # Obtain samples from priors
         for j in tqdm(range(self.NumLiveSetSamples), desc="DiffNest || Populate"):
             with torch.no_grad():
+                # Define the start point of the diffusion
+                if self.diff_params['noise_init']:
+                    x_start = torch.randn_like(self.x_sample_init)
+                else:
+                    x_start = self.x_sample_init
+
                 # Sample from the prior to generate live samples
                 self.Xcur = self.prior_sampler.forward(
-                    self.y, self.physics, x_init=self.x_sample_init
+                    self.y, self.physics, x_init=x_start
                 )
                 # Record the current sample in the live set and its likelihood
                 self.Xtrace["LiveSet"][j] = self.Xcur.clone()
@@ -238,15 +242,18 @@ class DiffusionNestedSampling(torch.nn.Module):
                 # Update likelihood constraint
                 self.update_likelihood_constraint(tau)
 
-                # Compare likelihoods between samples and init sample
-                Xcur_logLikeL = self.LogLikeliL(
-                    self.Xcur, self.y, self.physics, self.diff_params['sigma_noise']
-                ).detach().cpu().numpy()
-
-                if (-Xcur_logLikeL) > (-self.x_sample_init_logLikeL):
-                    x_start = self.x_sample_init
+                if self.diff_params['noise_init']:
+                    x_start = torch.randn_like(self.x_sample_init)
                 else:
-                    x_start = self.Xcur
+                    # Compare likelihoods between samples and init sample
+                    Xcur_logLikeL = self.LogLikeliL(
+                        self.Xcur, self.y, self.physics, self.diff_params['sigma_noise']
+                    ).detach().cpu().numpy()
+
+                    if (-Xcur_logLikeL) > (-self.x_sample_init_logLikeL):
+                        x_start = self.x_sample_init
+                    else:
+                        x_start = self.Xcur
 
                 # Sample from the constrained prior
                 self.Xcur = self.constrained_prior_sampler.forward(
