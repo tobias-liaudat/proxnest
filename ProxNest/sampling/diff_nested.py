@@ -300,11 +300,93 @@ class DiffusionNestedSampling(torch.nn.Module):
                         vis_Xcur, caption="New live samples n: {}".format(k)
                     )
                     wandb.log({"New live samples": image})
+                
+                if self.options['wandb_vis'] and 'wandb_log_evidence_freq' in self.options:
+                    if k % self.options['wandb_log_evidence_freq'] == 0:
+                        print('Compute evidence at k: ', k)
+                        CurrBayEvi = self.compute_current_evidence(k)
+                        wandb.log({"Evidence (current estimate)": CurrBayEvi[0]})
+                        wandb.log({"Evidence variance (current estimate)": CurrBayEvi[1]})
 
         # Reorder the live samples TODO: Make this more efficient!
         self.Xtrace["LiveSet"], self.Xtrace["LiveSetL"] = resampling.reorder_samples(
             self.Xtrace["LiveSet"], self.Xtrace["LiveSetL"]
         )
+
+    def compute_current_evidence(self, k):
+        """Compute current evidence estimate
+
+        Arguments
+        ---------
+
+        k: int
+            Current number of updated samples
+        """
+        CurrNumDiscardSamples = k
+        # Init samples
+        CurrBayEvi = np.zeros(2)
+        DiscardW = np.zeros(CurrNumDiscardSamples)
+
+        DiscardW[0] = 1 / self.NumLiveSetSamples
+
+        # Compute the sample weight
+        for j in range(CurrNumDiscardSamples):
+            DiscardW[j] = np.exp(-(j + 1) / self.NumLiveSetSamples)
+
+        # Compute the volumn length for each sample using trapezium rule
+        discardLen = np.zeros(CurrNumDiscardSamples)
+        discardLen[0] = (1 - np.exp(-2 / self.NumLiveSetSamples)) / 2
+
+
+        for i in range(1, CurrNumDiscardSamples - 1):
+            discardLen[i] = (DiscardW[i - 1] - DiscardW[i + 1]) / 2
+
+        discardLen[-1] = (
+            np.exp(-(CurrNumDiscardSamples - 1) / self.NumLiveSetSamples)
+            - np.exp(-(CurrNumDiscardSamples + 1) / self.NumLiveSetSamples)
+        ) / 2
+        # volume length of the last discarded sample
+
+        liveSampleLen = np.exp(-(CurrNumDiscardSamples) / self.NumLiveSetSamples)
+        # volume length of the living sample
+
+        # Apply the disgarded sample for Bayesian evidence value computation
+        vecDiscardLLen = self.Xtrace["DiscardL"][:CurrNumDiscardSamples] + np.log(discardLen)
+
+        # Apply the final live set samples for Bayesian evidence value computation
+        vecLiveSetLLen = self.Xtrace["LiveSetL"] + np.log(liveSampleLen / self.NumLiveSetSamples)
+
+        # #   ------- Way 1: using discarded and living samples --------
+        # # Get the maximum value of the exponents for all the samples
+        # maxAllSampleLLen = max(max(vecDiscardLLen),max(vecLiveSetLLen))
+
+        # # Compute the Bayesian evidence value using discarded and living samples
+        # BayEvi[0] = maxAllSampleLLen + np.log(
+        #     np.sum(
+        #         np.exp(vecDiscardLLen-maxAllSampleLLen)
+        #     ) + np.sum(
+        #         np.exp(vecLiveSetLLen-maxAllSampleLLen)
+        #     )
+        # )
+
+        # ------- Way 2: using discarded samples --------
+        # Get the maximum value of the exponents for the discarded samples
+        maxDiscardLLen = np.max(vecDiscardLLen)
+
+        # Compute the Bayesian evidence value using discarded and living samples
+        CurrBayEvi[0] = maxDiscardLLen + np.log(np.sum(np.exp(vecDiscardLLen - maxDiscardLLen)))
+
+        # Extimate the error of the computed Bayesian evidence
+        entropyH = 0
+
+        for j in range(CurrNumDiscardSamples):
+            temp1 = np.exp(self.Xtrace["DiscardL"][j] + np.log(discardLen[j]) - CurrBayEvi[0])
+            entropyH = entropyH + temp1 * (self.Xtrace["DiscardL"][j] - CurrBayEvi[0])
+
+        # Evaluate the evidence variance
+        CurrBayEvi[1] = np.sqrt(np.abs(entropyH) / self.NumLiveSetSamples)
+
+        return CurrBayEvi
 
     def compute_evidence_stats(self):
         # Bayesian evidence calculation
