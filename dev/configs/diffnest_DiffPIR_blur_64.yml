@@ -25,7 +25,7 @@ blur_kernel_size: 3
 
 # options - Nested sampling alg
 samplesL: 1000
-samplesD: 20000
+samplesD: 7500
 tol: 1e-10
 max_iter: 1000
 verbose: True
