@@ -137,13 +137,14 @@ def main(config_path, device):
     plt.show()
 
     # Save results
-    save_dict = {
-        'BayEvi': BayEvi,
-        'Xtrace': Xtrace,
-    }
     np.save(
-        cfg.save_dir + cfg.experiment + cfg.run_name + 'nest_diff_variables.npy',
-        save_dict,
+        cfg.save_dir + cfg.experiment + cfg.run_name + 'nest_diff_Xtrace.npy',
+        Xtrace,
+        allow_pickle=True
+    )
+    np.save(
+        cfg.save_dir + cfg.experiment + cfg.run_name + 'nest_diff_BayEvi.npy',
+        BayEvi,
         allow_pickle=True
     )
 
