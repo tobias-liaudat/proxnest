@@ -309,8 +309,11 @@ class DiffusionNestedSampling(torch.nn.Module):
                     wandb.log({"New live samples": image})
                 
                 if self.options['wandb_vis'] and 'wandb_log_evidence_freq' in self.options:
-                    if k % self.options['wandb_log_evidence_freq'] == 0:
-                        print('Compute evidence at k: ', k)
+                    if (
+                        k % self.options['wandb_log_evidence_freq'] == 0
+                    ) and (
+                        k >= self.options['wandb_log_evidence_freq']
+                    ):
                         CurrBayEvi = self.compute_current_evidence(k)
                         wandb.log({"Evidence (current estimate)": CurrBayEvi[0]})
                         wandb.log({"Evidence variance (current estimate)": CurrBayEvi[1]})
