@@ -187,7 +187,7 @@ class DiffusionNestedSampling(torch.nn.Module):
             with torch.no_grad():
                 # Define the start point of the diffusion
                 if self.diff_params['noise_init']:
-                    x_start = torch.randn_like(self.x_sample_init)
+                    x_start = (torch.randn_like(self.x_sample_init)+1)/2
                 else:
                     x_start = self.x_sample_init
 
@@ -243,7 +243,7 @@ class DiffusionNestedSampling(torch.nn.Module):
                 self.update_likelihood_constraint(tau)
 
                 if self.diff_params['noise_init']:
-                    x_start = torch.randn_like(self.x_sample_init)
+                    x_start = (torch.randn_like(self.x_sample_init)+1)/2
                 else:
                     # Compare likelihoods between samples and init sample
                     Xcur_logLikeL = self.LogLikeliL(
