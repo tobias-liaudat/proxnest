@@ -19,6 +19,9 @@ dtype: uint
 # dtype can be uint (0 to 255) or float
 ISNR: 20
 
+# Inverse problem type
+inv_problem: blur
+
 # Inverse problem params
 blur_kernel_size: 5
 
