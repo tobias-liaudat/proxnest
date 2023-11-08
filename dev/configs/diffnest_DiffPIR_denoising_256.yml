@@ -1,0 +1,57 @@
+# Define paths
+save_dir: /disk/xray0/tl3/project-nested-diffusion/proxnest/dev/tmp_storage/
+input_data_dir: /disk/xray0/tl3/project-nested-diffusion/proxnest/data/
+
+# Experiment name
+experiment: diffnest_denoising_256_
+run_name: denoising_long_run_1_
+
+# Logging
+wandb_vis: True
+wandb_vis_imgs: True
+wandb_vis_imgs_freq: 5
+wandb_log_evidence_freq: 5
+
+# Data
+img_size: 256
+sigma: None
+dtype: uint
+# dtype can be uint (0 to 255) or float
+ISNR: 15
+
+# Inverse problem type
+inv_problem: denoising
+
+# Inverse problem params
+
+
+# options - Nested sampling alg
+samplesL: 1000
+samplesD: 20000
+tol: 1e-10
+max_iter: 1000
+verbose: True
+# samplesL: Number of live samples
+# samplesD: Number of discarded samples 
+# tol: Convergence tolerance of algorithm (L2 Ball projection alg)
+# max_iter: Maximum number of iterations (L2 Ball projection alg)
+# verbose: Verbosity
+
+
+# Diffusion params
+model_type: imagenet
+in_channels: 3
+out_channels: 3
+diffusion_steps: 100
+lambda_: 7.0
+zeta: 0.3
+noise_init: True
+
+# model_type: Type of pretrained model. Options are 'imagenet' or 'ffhq'
+# in_channels: Channels in the input Tensor.
+# out_channels: Channels in the output Tensor.
+# Noise standard deviation of degraded image
+# diffusion_steps: Maximum number of iterations of the DiffPIR algorithm
+# lambda_: Regularisation parameter
+# zeta: DiffPIR parameter controling the diffusion
+
