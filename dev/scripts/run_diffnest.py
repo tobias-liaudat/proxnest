@@ -34,15 +34,21 @@ def main(config_path, device):
             sigma /= 255
 
     # Define the forward operator
-    physics = dinv.physics.BlurFFT(
-        img_size=(3, x.shape[-2], x.shape[-1]),
-        filter=torch.ones(
-            (1, 1, int(cfg.blur_kernel_size), int(cfg.blur_kernel_size)),
-            device=device
-        ) / cfg.blur_kernel_size**2,
-        device=device,
-        noise_model=dinv.physics.GaussianNoise(sigma=sigma),
-    )
+    if cfg.inv_problem == 'blur':
+        physics = dinv.physics.BlurFFT(
+            img_size=(3, x.shape[-2], x.shape[-1]),
+            filter=torch.ones(
+                (1, 1, int(cfg.blur_kernel_size), int(cfg.blur_kernel_size)),
+                device=device
+            ) / cfg.blur_kernel_size**2,
+            device=device,
+            noise_model=dinv.physics.GaussianNoise(sigma=sigma),
+        )
+    elif cfg.inv_problem == 'denoising':
+        physics = dinv.physics.Denoising(
+            noise=dinv.physics.GaussianNoise(sigma=sigma),
+            device=device,
+        )
 
     # Compute observations
     y = physics(x)
