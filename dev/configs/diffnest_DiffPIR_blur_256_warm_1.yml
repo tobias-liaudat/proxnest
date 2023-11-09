@@ -1,0 +1,78 @@
+# ----- #
+# Define paths
+save_dir: /disk/xray0/tl3/project-nested-diffusion/proxnest/dev/tmp_storage/
+input_data_dir: /disk/xray0/tl3/project-nested-diffusion/proxnest/data/
+# Experiment name
+experiment: diffnest_blur_256_
+run_name: blur_long_run_4_
+
+
+# ----- #
+# Logging
+wandb_vis: True
+wandb_vis_imgs: True
+wandb_vis_imgs_freq: 5
+wandb_log_evidence_freq: 5
+
+
+# ----- #
+# Data
+img_size: 256
+sigma: None
+dtype: uint
+# dtype can be uint (0 to 255) or float
+ISNR: 20
+
+
+# ----- #
+# Inverse problem type
+inv_problem: blur
+# Inverse problem params
+blur_kernel_size: 5
+
+
+# ----- #
+# options - Nested sampling alg
+samplesL: 500
+samplesD: 10000
+warm_start: True
+warm_start_coeff: 1
+verbose: True
+# samplesL: Number of live samples
+# samplesD: Number of discarded samples 
+# warm_start: warm start the algorithm by setting a minimum likelihood value from where to sample
+# warm_start_coeff: Coefficient $a$ to compute the minimum likelihood to use for the warm start.
+#   It is computed as $a*L(x^{hat})$, where $x^{hat}$ is the pseudo inverse of the inverse problem 
+#   and $L(.)$ is the likelihood function.
+# verbose: Verbosity
+
+
+# ----- #
+# L2 ball projection algorithm options
+l2_proj_method: 'deepinv'
+max_iter: 500
+tol: 1e-2
+optim_verbose: False
+# l2_proj_method: projection methods are 'deepinv' and 'sopt'
+# tol: Convergence tolerance of algorithm (L2 Ball projection alg)
+# max_iter: Maximum number of iterations (L2 Ball projection alg)
+# optim_verbose: L2 ball projection ptimisation verbosity
+
+
+# ----- #
+# Diffusion params
+model_type: imagenet
+in_channels: 3
+out_channels: 3
+diffusion_steps: 100
+lambda_: 7.0
+zeta: 0.3
+noise_init: True
+# model_type: Type of pretrained model. Options are 'imagenet' or 'ffhq'
+# in_channels: Channels in the input Tensor.
+# out_channels: Channels in the output Tensor.
+# Noise standard deviation of degraded image
+# diffusion_steps: Maximum number of iterations of the DiffPIR algorithm
+# lambda_: Regularisation parameter
+# zeta: DiffPIR parameter controling the diffusion
+
