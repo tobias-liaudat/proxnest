@@ -297,21 +297,33 @@ class DiffusionNestedSampling(torch.nn.Module):
                 if torch.linalg.norm(
                     self.y - self.physics.A(self.Xcur)
                 ) > (
-                    np.sqrt(tau * 2 * self.diff_params['sigma_noise']**2)
+                    np.sqrt(tau * 2 * self.diff_params['sigma_noise']**2) + self.l2_optim_options['tol']
                 ):
                     print('Explicitly enforcing L2 ball.')
-                    indicatorL2 = dinv.optim.data_fidelity.IndicatorL2(
-                        radius=np.sqrt(
+                    indicatorL2 = CustomIndicatorL2(
+                        radius=(np.sqrt(
                             tau * 2 * self.diff_params['sigma_noise']**2
-                        ).astype(np.float32) 
+                        )).astype(np.float32),
+                        projection_type=self.l2_optim_options['l2_proj_method'],
+                        max_iter=self.l2_optim_options['max_iter'],
+                        crit_conv=self.l2_optim_options['tol'],
+                        sopt_params=self.l2_optim_options
                     )
                     self.Xcur = indicatorL2.prox(
                         x=self.Xcur,
                         y=self.y,
                         physics=self.physics,
-                        crit_conv=self.options['tol'],
-                        max_iter=self.options['max_iter'],
                     )
+                    if torch.linalg.norm(
+                        self.y - self.physics.A(self.Xcur)
+                    ) > (
+                        np.sqrt(tau * 2 * self.diff_params['sigma_noise']**2) + self.l2_optim_options['tol']
+                    ):
+                        print("Sample is not inside the L2 ball!\nball_radius={}, sample_radius={}".format(
+                            np.sqrt(tau * 2 * self.diff_params['sigma_noise']**2),
+                            torch.linalg.norm(self.y - self.physics.A(self.Xcur)),
+                            )
+                        )
 
 
                 # Record the sample discarded and its likelihood
