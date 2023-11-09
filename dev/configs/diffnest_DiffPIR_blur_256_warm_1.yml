@@ -3,8 +3,8 @@
 save_dir: /disk/xray0/tl3/project-nested-diffusion/proxnest/dev/tmp_storage/
 input_data_dir: /disk/xray0/tl3/project-nested-diffusion/proxnest/data/
 # Experiment name
-experiment: diffnest_blur_256_
-run_name: blur_long_run_4_
+experiment: diffnest_blur_256_warmstart_
+run_name: blur_long_run_1_warmstart_1_
 
 
 # ----- #
