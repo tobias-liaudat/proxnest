@@ -193,6 +193,20 @@ class DiffusionNestedSampling(torch.nn.Module):
 
 
     def init_live_samples(self):
+
+        if self.options['warm_start']:
+            # If we're using a warm start, initialise the constrained prior sampler to the 
+            # correct value
+            # Compute pseudoinverse of the solution
+            x_pseudo = self.physics.A_adjoint(self.y)
+            # Compute likelihood
+            x_pseudo_logLikeL = self.LogLikeliL(
+                        x_pseudo, self.y, self.physics, self.diff_params['sigma_noise']
+            ).detach().cpu().numpy()
+            # Update the constraint
+            x_pseudo_tau = - x_pseudo_logLikeL * self.options['warm_start_coeff']
+            self.update_likelihood_constraint(x_pseudo_tau)
+
         # Obtain samples from priors
         for j in tqdm(range(self.NumLiveSetSamples), desc="DiffNest || Populate"):
             with torch.no_grad():
@@ -202,10 +216,17 @@ class DiffusionNestedSampling(torch.nn.Module):
                 else:
                     x_start = self.x_sample_init
 
-                # Sample from the prior to generate live samples
-                self.Xcur = self.prior_sampler.forward(
-                    self.y, self.physics, x_init=x_start
-                )
+                
+                if self.options['warm_start']:
+                    # Sample from the prior constrained to a given likelihood set
+                    self.Xcur = self.constrained_prior_sampler.forward(
+                        self.y, self.physics, x_init=x_start
+                    )
+                else:
+                    # Sample from the unconstrained prior to generate live samples
+                    self.Xcur = self.prior_sampler.forward(
+                        self.y, self.physics, x_init=x_start
+                    )
                 # Record the current sample in the live set and its likelihood
                 self.Xtrace["LiveSet"][j] = self.Xcur.clone()
                 self.Xtrace["LiveSetL"][j] = self.LogLikeliL(
