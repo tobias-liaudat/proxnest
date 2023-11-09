@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 import ProxNest.utils.logs as log
+from ProxNest.optimisations.l2_ball_proj import CustomIndicatorL2
 from . import resampling
 import deepinv as dinv
 import wandb
@@ -28,6 +29,7 @@ class DiffusionNestedSampling(torch.nn.Module):
         LogLikeliL,
         options,
         diff_params,
+        l2_optim_options,
         device='cpu'
     ):
         super(DiffusionNestedSampling, self).__init__()
@@ -37,6 +39,7 @@ class DiffusionNestedSampling(torch.nn.Module):
         self.LogLikeliL = LogLikeliL
         self.options = options
         self.diff_params = diff_params
+        self.l2_optim_options = l2_optim_options
         self.device = device
 
         # Set initial state as current state
@@ -126,10 +129,14 @@ class DiffusionNestedSampling(torch.nn.Module):
             max_iter=self.diff_params['diffusion_steps'],
             lambda_=self.diff_params['lambda_'],
             zeta=self.diff_params['zeta'],
-            data_fidelity=dinv.optim.data_fidelity.IndicatorL2(
+            data_fidelity=CustomIndicatorL2(
                 radius=(np.sqrt(
                     tau_0 * 2 * self.diff_params['sigma_noise']**2
-                )).astype(np.float32)
+                )).astype(np.float32),
+                projection_type=self.l2_optim_options['l2_proj_method'],
+                max_iter=self.l2_optim_options['max_iter'],
+                crit_conv=self.l2_optim_options['tol'],
+                sopt_params=self.l2_optim_options
             ),
             verbose=self.options['verbose'],
             device=device
@@ -171,10 +178,14 @@ class DiffusionNestedSampling(torch.nn.Module):
             max_iter=self.diff_params['diffusion_steps'],
             lambda_=self.diff_params['lambda_'],
             zeta=self.diff_params['zeta'],
-            data_fidelity=dinv.optim.data_fidelity.IndicatorL2(
+            data_fidelity=CustomIndicatorL2(
                 radius=(np.sqrt(
                     tau * 2 * self.diff_params['sigma_noise']**2
-                )).astype(np.float32)
+                )).astype(np.float32),
+                projection_type=self.l2_optim_options['l2_proj_method'],
+                max_iter=self.l2_optim_options['max_iter'],
+                crit_conv=self.l2_optim_options['tol'],
+                sopt_params=self.l2_optim_options
             ),
             verbose=self.options['verbose'],
             device=self.device
@@ -262,10 +273,10 @@ class DiffusionNestedSampling(torch.nn.Module):
 
                 # check if the new sample is inside l2-ball (metropolis-hasting);
                 # if not, force the new sample into L2-ball
-                if torch.nn.functional.mse_loss(
-                    self.y, self.physics.A(self.Xcur), reduction='sum'
+                if torch.linalg.norm(
+                    self.y - self.physics.A(self.Xcur)
                 ) > (
-                    tau * 2 * self.diff_params['sigma_noise']**2
+                    np.sqrt(tau * 2 * self.diff_params['sigma_noise']**2)
                 ):
                     print('Explicitly enforcing L2 ball.')
                     indicatorL2 = dinv.optim.data_fidelity.IndicatorL2(
