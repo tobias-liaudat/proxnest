@@ -58,8 +58,6 @@ def main(config_path, device):
                        'samplesL' : cfg.samplesL,                   # Number of live samples
                        'samplesD' : cfg.samplesD,                   # Number of discarded samples 
                           'sigma' : sigma,                          # Noise standard deviation of degraded image
-                            'tol' : float(cfg.tol),                 # Convergence tolerance of algorithm (Ball projection alg)
-                       'max_iter' : cfg.max_iter,                   # Maximum number of iterations (Ball projection alg)
                         'verbose' : cfg.verbose,                    # Verbosity
                            'ISNR' : cfg.ISNR,                       # Input SNR
                         'img_size': cfg.img_size,                   # Input image size
@@ -69,6 +67,17 @@ def main(config_path, device):
         'wandb_log_evidence_freq' : cfg.wandb_log_evidence_freq,    # Frequency to compute evidence and log it to wandb
                      'experiment' : cfg.experiment,                 # Experiment name
                        'run_name' : cfg.run_name,                   # Run name
+    }
+
+    l2_optim_options = {
+        'l2_proj_method' : cfg.l2_proj_method,
+                   'tol' : float(cfg.tol),      # Convergence tolerance of algorithm (Ball projection alg)
+              'max_iter' : cfg.max_iter,        # Maximum number of iterations (Ball projection alg)
+               'verbose' : cfg.optim_verbose,   # Verbosity
+                 'tight' : False,               # sopt: tight frame boolean
+                   'pos' : False,               # sopt: positivity (and reality) constraint
+               'reality' : False,               # sopt: reality constraint
+                    'nu' : 1.,                  # sopt: nu parameter
     }
 
     diff_params = {
@@ -116,6 +125,7 @@ def main(config_path, device):
         LogLikeliL=LogLikeliL,
         options=options,
         diff_params=diff_params,
+        l2_optim_options=l2_optim_options,
         device=device
     )
 
