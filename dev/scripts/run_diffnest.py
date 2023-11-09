@@ -56,7 +56,9 @@ def main(config_path, device):
     # Options dictionary associated with the overall sampling algorithm
     options = {
                        'samplesL' : cfg.samplesL,                   # Number of live samples
-                       'samplesD' : cfg.samplesD,                   # Number of discarded samples 
+                       'samplesD' : cfg.samplesD,                   # Number of discarded samples
+                     'warm_start' : cfg.warm_start,                 # warm_start: warm start the algorithm by setting a minimum likelihood value from where to sample
+               'warm_start_coeff' : float(cfg.warm_start_coeff),    # warm_start_coeff: Coefficient $a$ to compute the minimum likelihood to use for the warm start. It is computed as $a*L(x^{hat})$, where $x^{hat}$ is the pseudo inverse of the inverse problem and $L(.)$ is the likelihood function.
                           'sigma' : sigma,                          # Noise standard deviation of degraded image
                         'verbose' : cfg.verbose,                    # Verbosity
                            'ISNR' : cfg.ISNR,                       # Input SNR
