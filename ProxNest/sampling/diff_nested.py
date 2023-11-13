@@ -267,7 +267,7 @@ class DiffusionNestedSampling(torch.nn.Module):
             with torch.no_grad():
                 # Define the start point of the diffusion
                 if self.diff_params['noise_init']:
-                    x_start = (torch.randn_like(self.x_sample_init)+1)/2
+                    x_start = (torch.randn_like(self.x_sample_init) + 1) / 2
                 else:
                     x_start = self.x_sample_init
 
@@ -289,7 +289,9 @@ class DiffusionNestedSampling(torch.nn.Module):
                 ).detach().cpu().numpy()
 
                 if self.options['wandb_vis']:
-                    wandb.log({"Init live samples - log Likelihood value": - self.Xtrace["LiveSetL"][j].copy()})
+                    wandb.log({"Init live samples, log likelihood ratio (discarted / max_likelihood)": (
+                        self.Xtrace["LiveSetL"][j].copy() / self.x_pseudo_logLikeL
+                    )})
 
                 if (
                     self.options['wandb_vis']
@@ -388,8 +390,8 @@ class DiffusionNestedSampling(torch.nn.Module):
 
                 if self.options['wandb_vis']:
                     wandb.log(
-                        {"Discarded: log likelihood ratio (discarted/max_likelihood)": (
-                            self.Xtrace["LiveSetL"][-1].copy()/self.x_pseudo_logLikeL
+                        {"Discarded, log likelihood ratio (discarted / max_likelihood)": (
+                            self.Xtrace["LiveSetL"][-1].copy() / self.x_pseudo_logLikeL
                         )}
                     )
 
