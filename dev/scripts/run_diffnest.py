@@ -83,14 +83,24 @@ def main(config_path, device):
     }
 
     diff_params = {
-             'model_type' : cfg.model_type,         # Type of pretrained model. Options are 'imagenet' or 'ffhq'
-            'in_channels' : cfg.in_channels,        # Channels in the input Tensor.
-           'out_channels' : cfg.out_channels,       # Channels in the output Tensor.
-            'sigma_noise' : sigma,                  # Noise standard deviation of degraded image
-        'diffusion_steps' : cfg.diffusion_steps,    # Maximum number of iterations of the DiffPIR algorithm
-                'lambda_' : cfg.lambda_,            # Regularisation parameter
-                   'zeta' : cfg.zeta,               # DiffPIR parameter controling the diffusion
-             'noise_init' : cfg.noise_init          # Initialise diffusion with N(0,I) Gaussian
+                 'model_type' : cfg.model_type,             # Type of pretrained model. Options are 'imagenet' or 'ffhq'
+                'in_channels' : cfg.in_channels,            # Channels in the input Tensor.
+               'out_channels' : cfg.out_channels,           # Channels in the output Tensor.
+                'sigma_noise' : sigma,                      # Noise standard deviation of degraded image
+            'diffusion_steps' : cfg.diffusion_steps,        # Maximum number of iterations of the DiffPIR algorithm
+                    'lambda_' : cfg.lambda_,                # Regularisation parameter
+                       'zeta' : cfg.zeta,                   # DiffPIR parameter controling the diffusion
+                 'noise_init' : cfg.noise_init,             # Initialise diffusion with N(0,I) Gaussian
+                 'reflection' : cfg.reflection,             # Boolean, True to use reflections, False not to use them. The other 
+                                                            # reflection parameters are ignored if in False.
+        'reflection_strategy' : cfg.reflection_strategy,    # Reflection strategy. `1` is using the prox projection to reflect, 
+                                                            # `2` reflects using the boundary's normal at the intersection, 
+                                                            # if `3` the reflection is done using the boundary's normal but 
+                                                            # from the point outside the boundary without computing the 
+                                                            # intersection with the boundary.  
+             'reflection_pos' : cfg.reflection_pos,         # Position to reflect. If "beggining", it is applied to x0 after the 
+                                                            # score is computed. If "end", it is applied at the last line of the 
+                                                            # reverse diffusion step. 
     }
 
     # Gaussian log likelihood
