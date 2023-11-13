@@ -46,6 +46,7 @@ class ReflectedDiffPIR(nn.Module):
     :param float lambda_: hyperparameter :math:`\lambda` for the data fidelity step
         (:math:`\rho_t = \lambda \frac{\sigma_n^2}{\bar{\sigma}_t^2}` in the paper where the optimal value range
          between 3.0 and 25.0 depending on the problem). Default: 7.0.
+    :param dict diff_params: dictionary with the `reflection_pos` and `reflection_strategy` parameters.
     :param bool verbose: if True, print progress
     :param str device: the device to use for the computations
     """
@@ -59,6 +60,7 @@ class ReflectedDiffPIR(nn.Module):
         max_iter=100,
         zeta=1.0,
         lambda_=7.0,
+        diff_params=None,
         verbose=False,
         device="cpu",
     ):
@@ -69,6 +71,16 @@ class ReflectedDiffPIR(nn.Module):
         self.boundary_indicator = boundary_indicator
         self.max_iter = max_iter
         self.zeta = zeta
+        self.diff_params = diff_params
+        if diff_params is None or (
+            "reflection_pos" not in diff_params or "reflection_strategy" not in diff_params
+        ):
+            self.reflection_pos = 'beggining'
+            self.reflection_strategy = 1
+        else:
+            self.reflection_pos = self.diff_params["reflection_pos"]
+            self.reflection_strategy = self.diff_params["reflection_strategy"]
+
         self.verbose = verbose
         self.device = device
         self.beta_start, self.beta_end = 0.1 / 1000, 20 / 1000
@@ -172,15 +184,18 @@ class ReflectedDiffPIR(nn.Module):
         """ Reflect on the boundary
 
         """
-        # Compute projection based on the data fidelity prox
-        x_proj = x / 2 + 0.5
-        x_proj = self.data_fidelity.prox(
-            x_proj, y, physics
-        )
-        x_proj = x_proj * 2 - 1
+        if self.reflection_strategy == 1:
+            # Compute projection based on the data fidelity prox
+            x_proj = x / 2 + 0.5
+            x_proj = self.data_fidelity.prox(
+                x_proj, y, physics
+            )
+            x_proj = x_proj * 2 - 1
 
-        # Reflection step (based on projection operator)
-        x = x + 5 * (x_proj - x.clone())
+            # Reflection step (based on projection operator)
+            x = x + 2 * (x_proj - x.clone())
+        else:
+            raise NotImplementedError('Reflection strategy requested is not implemented.')
 
         return x
 
@@ -241,18 +256,10 @@ class ReflectedDiffPIR(nn.Module):
                 if not self.seq[i] == self.seq[-1]:
                     # SKIP -> Data fidelity step
 
-                    # Check if the x0 is outside the boundary
-                    if not self.boundary_indicator(x0):
-                        x0 = self.reflect(x0.clone(), y, physics)
-                        # # Compute projection based on the data fidelity prox
-                        # x0_proj = x0.clone() / 2 + 0.5
-                        # x0_proj = self.data_fidelity.prox(
-                        #     x0_proj, y, physics, gamma=1 / (2 * self.rhos[t_i])
-                        # )
-                        # x0_proj = x0_proj * 2 - 1
-
-                        # # Reflection step (based on projection operator)
-                        # x0 = x0 + 2 * (x0_proj - x0.clone())
+                    if self.reflection_pos == "beggining":
+                        # Check if the x0 is outside the boundary
+                        if not self.boundary_indicator(x0):
+                            x0 = self.reflect(x0.clone(), y, physics)
 
                     # Sampling step
                     t_im1 = self.find_nearest(
@@ -283,6 +290,11 @@ class ReflectedDiffPIR(nn.Module):
                             + np.sqrt(self.sqrt_1m_alphas_cumprod[t_im1]**2 - sigma_t**2) * eps
                             + sigma_t * torch.randn_like(x)
                         ) # sampling (eq14)
+
+                        if self.reflection_pos == "end":
+                            # Check if the x0 is outside the boundary
+                            if not self.boundary_indicator(x):
+                                x = self.reflect(x.clone(), y, physics)
 
         out = x / 2 + 0.5  # back to [0, 1] range
 
