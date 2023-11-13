@@ -75,11 +75,14 @@ class ReflectedDiffPIR(nn.Module):
         if diff_params is None or (
             "reflection_pos" not in diff_params or "reflection_strategy" not in diff_params
         ):
-            self.reflection_pos = 'beggining'
+            self.reflection_pos = 'beginning'
             self.reflection_strategy = 1
         else:
             self.reflection_pos = self.diff_params["reflection_pos"]
             self.reflection_strategy = self.diff_params["reflection_strategy"]
+
+        if self.reflection_pos != "beginning" and self.reflection_pos != "end":
+            raise ValueError("diff_params['reflection_pos'] option is not valid.")
 
         self.verbose = verbose
         self.device = device
@@ -256,7 +259,7 @@ class ReflectedDiffPIR(nn.Module):
                 if not self.seq[i] == self.seq[-1]:
                     # SKIP -> Data fidelity step
 
-                    if self.reflection_pos == "beggining":
+                    if self.reflection_pos == "beginning":
                         # Check if the x0 is outside the boundary
                         if not self.boundary_indicator(x0):
                             x0 = self.reflect(x0.clone(), y, physics)
