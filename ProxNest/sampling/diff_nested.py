@@ -2,9 +2,11 @@ import numpy as np
 import torch
 from tqdm import tqdm
 import ProxNest.utils.logs as log
-from ProxNest.optimisations.l2_ball_proj import CustomIndicatorL2
+from ProxNest.optimisations.l2_ball_proj import CustomIndicatorL2, l2_boundary_indicator
+from ProxNest.sampling.diffusion import ReflectedDiffPIR
 from . import resampling
 import deepinv as dinv
+from functools import partial
 import wandb
 
 
@@ -47,7 +49,7 @@ class DiffusionNestedSampling(torch.nn.Module):
         self.Xcur = x_init
         tau_0 = -self.LogLikeliL(
             self.Xcur, self.y, self.physics, self.diff_params['sigma_noise']
-        ).cpu().numpy() * 1e-1
+        ).cpu().numpy() # * 1e-1
 
         # Logging to wandb
         if self.options['wandb_vis']:
@@ -122,25 +124,50 @@ class DiffusionNestedSampling(torch.nn.Module):
         # How to sample from the prior
         # xhat =  self.prior_sampler.forward(y, physics, x_init)
 
+        # Compute radius for first constrained sampler
+        radius = (np.sqrt(tau_0 * 2 * self.diff_params['sigma_noise']**2)).astype(np.float32)
         # Build constrained prior sampler
-        self.constrained_prior_sampler = dinv.sampling.DiffPIR(
-            self.denoising_model,
-            sigma=self.diff_params['sigma_noise'],
-            max_iter=self.diff_params['diffusion_steps'],
-            lambda_=self.diff_params['lambda_'],
-            zeta=self.diff_params['zeta'],
-            data_fidelity=CustomIndicatorL2(
-                radius=(np.sqrt(
-                    tau_0 * 2 * self.diff_params['sigma_noise']**2
-                )).astype(np.float32),
-                projection_type=self.l2_optim_options['l2_proj_method'],
-                max_iter=self.l2_optim_options['max_iter'],
-                crit_conv=self.l2_optim_options['tol'],
-                sopt_params=self.l2_optim_options
-            ),
-            verbose=self.options['verbose'],
-            device=device
-        )
+        if self.diff_params['reflection']:
+            # Define boundary indicator function for the reflection
+            boundary_indicator = partial(
+                l2_boundary_indicator, y=self.y, physics=self.physics, radius=radius
+            )
+            self.constrained_prior_sampler = ReflectedDiffPIR(
+                self.denoising_model,
+                sigma=self.diff_params['sigma_noise'],
+                max_iter=self.diff_params['diffusion_steps'],
+                lambda_=self.diff_params['lambda_'],
+                zeta=self.diff_params['zeta'],
+                boundary_indicator=boundary_indicator,
+                data_fidelity=CustomIndicatorL2(
+                    radius=radius,
+                    projection_type=self.l2_optim_options['l2_proj_method'],
+                    max_iter=self.l2_optim_options['max_iter'],
+                    crit_conv=self.l2_optim_options['tol'],
+                    sopt_params=self.l2_optim_options
+                ),
+                diff_params=self.diff_params,
+                verbose=self.options['verbose'],
+                device=self.device
+            )
+
+        else:
+            self.constrained_prior_sampler = dinv.sampling.DiffPIR(
+                self.denoising_model,
+                sigma=self.diff_params['sigma_noise'],
+                max_iter=self.diff_params['diffusion_steps'],
+                lambda_=self.diff_params['lambda_'],
+                zeta=self.diff_params['zeta'],
+                data_fidelity=CustomIndicatorL2(
+                    radius=radius,
+                    projection_type=self.l2_optim_options['l2_proj_method'],
+                    max_iter=self.l2_optim_options['max_iter'],
+                    crit_conv=self.l2_optim_options['tol'],
+                    sopt_params=self.l2_optim_options
+                ),
+                verbose=self.options['verbose'],
+                device=self.device
+            )
 
         # Generate init sample
         self._generate_init_sample()
@@ -154,7 +181,7 @@ class DiffusionNestedSampling(torch.nn.Module):
             sigma=self.diff_params['sigma_noise'],
             max_iter=self.diff_params['diffusion_steps'],
             lambda_=self.diff_params['lambda_'],
-            zeta=self.diff_params['zeta'], # 0.5s,
+            zeta=self.diff_params['zeta'],
             data_fidelity=dinv.optim.L2(),
             verbose=self.options['verbose'],
             device=self.device
@@ -172,24 +199,50 @@ class DiffusionNestedSampling(torch.nn.Module):
     def update_likelihood_constraint(self, tau):
         """ Update constrained prior sampler with new likelihood constraint.
         """
-        self.constrained_prior_sampler = dinv.sampling.DiffPIR(
-            self.denoising_model,
-            sigma=self.diff_params['sigma_noise'],
-            max_iter=self.diff_params['diffusion_steps'],
-            lambda_=self.diff_params['lambda_'],
-            zeta=self.diff_params['zeta'],
-            data_fidelity=CustomIndicatorL2(
-                radius=(np.sqrt(
-                    tau * 2 * self.diff_params['sigma_noise']**2
-                )).astype(np.float32),
-                projection_type=self.l2_optim_options['l2_proj_method'],
-                max_iter=self.l2_optim_options['max_iter'],
-                crit_conv=self.l2_optim_options['tol'],
-                sopt_params=self.l2_optim_options
-            ),
-            verbose=self.options['verbose'],
-            device=self.device
-        )
+        # Compute new radius
+        radius = (np.sqrt(tau * 2 * self.diff_params['sigma_noise']**2)).astype(np.float32)
+
+        if self.diff_params['reflection']:
+            # Define boundary indicator function for the reflection
+            boundary_indicator = partial(
+                l2_boundary_indicator, y=self.y, physics=self.physics, radius=radius
+            )
+            self.constrained_prior_sampler = ReflectedDiffPIR(
+                self.denoising_model,
+                sigma=self.diff_params['sigma_noise'],
+                max_iter=self.diff_params['diffusion_steps'],
+                lambda_=self.diff_params['lambda_'],
+                zeta=self.diff_params['zeta'],
+                boundary_indicator=boundary_indicator,
+                data_fidelity=CustomIndicatorL2(
+                    radius=radius,
+                    projection_type=self.l2_optim_options['l2_proj_method'],
+                    max_iter=self.l2_optim_options['max_iter'],
+                    crit_conv=self.l2_optim_options['tol'],
+                    sopt_params=self.l2_optim_options
+                ),
+                diff_params=self.diff_params,
+                verbose=self.options['verbose'],
+                device=self.device
+            )
+
+        else:
+            self.constrained_prior_sampler = dinv.sampling.DiffPIR(
+                self.denoising_model,
+                sigma=self.diff_params['sigma_noise'],
+                max_iter=self.diff_params['diffusion_steps'],
+                lambda_=self.diff_params['lambda_'],
+                zeta=self.diff_params['zeta'],
+                data_fidelity=CustomIndicatorL2(
+                    radius=radius,
+                    projection_type=self.l2_optim_options['l2_proj_method'],
+                    max_iter=self.l2_optim_options['max_iter'],
+                    crit_conv=self.l2_optim_options['tol'],
+                    sopt_params=self.l2_optim_options
+                ),
+                verbose=self.options['verbose'],
+                device=self.device
+            )
 
 
     def init_live_samples(self):
