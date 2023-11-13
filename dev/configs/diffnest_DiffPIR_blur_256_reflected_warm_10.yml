@@ -4,7 +4,7 @@ save_dir: /disk/xray0/tl3/project-nested-diffusion/proxnest/dev/tmp_storage/
 input_data_dir: /disk/xray0/tl3/project-nested-diffusion/proxnest/data/
 # Experiment name
 experiment: diffnest_blur_256_reflected_
-run_name: blur_long_run_1_
+run_name: blur_long_run_1_warm_10_
 
 
 # ----- #
@@ -38,8 +38,8 @@ blur_kernel_size: 5
 # options - Nested sampling alg
 samplesL: 1000
 samplesD: 10000
-warm_start: False
-warm_start_coeff: 5
+warm_start: True
+warm_start_coeff: 10
 verbose: True
 # samplesL: (int) Number of live samples
 # samplesD: (int) Number of discarded samples 
