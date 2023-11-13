@@ -3,6 +3,61 @@ import numpy as np
 from scipy.stats import multivariate_normal
 
 
+def bisection_method(function, start_interval, iters, tol, return_iters=False):
+    """Bisection method for locating minima of an abstract function
+
+    Args:
+
+        function (function): Loss function to bisect
+        start_interval (list[int]): Initial lower and upper bounds
+        iters (int): Maximum number of bisection iterations
+        tol (double): Convergence tolerance of iterations
+        return_iters (bool): return total number of iterations if True.
+
+    Returns:
+
+        Argument at which loss function is bisected
+    """
+
+    eta1 = start_interval[0]
+    eta2 = start_interval[1]
+    obj3 = function(eta2)
+    if np.allclose(eta1, eta2, 1e-12):
+        if return_iters:
+            return eta1, 0
+        else:
+            return eta1
+    if np.sign(function(eta1)) == np.sign(function(eta2)):
+        print("[Bisection Method] There is no root in this range.")
+        val = np.argmin(np.abs([eta1, eta2]))
+        if return_iters:
+            return [eta1, eta2][val], 2
+        else:
+            return [eta1, eta2][val]
+        
+    iters_cumul = 0
+    for i in range(int(iters)):
+        obj1 = function(eta1)
+        eta3 = (eta2 + eta1) * 0.5
+        obj3 = function(eta3)
+        iters_cumul += 2
+        if np.abs(eta1 - eta3) / np.abs(eta3) < tol:
+            # if np.abs(obj3) < tol:
+            if return_iters:
+                return eta3, iters_cumul
+            else:
+                return eta3
+        if np.sign(obj1) == np.sign(obj3):
+            eta1 = eta3
+        else:
+            eta2 = eta3
+    print("Did not converge... ", obj3)
+    if return_iters:
+        return eta3, iters_cumul
+    else:
+        return eta3
+
+
 # Customise a Multivariate Gaussian Class
 class MultivariateGaussian:
     def __init__(self, mu, cov):
