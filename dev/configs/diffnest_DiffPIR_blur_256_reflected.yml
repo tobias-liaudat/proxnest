@@ -1,0 +1,92 @@
+# ----- #
+# Define paths
+save_dir: /disk/xray0/tl3/project-nested-diffusion/proxnest/dev/tmp_storage/
+input_data_dir: /disk/xray0/tl3/project-nested-diffusion/proxnest/data/
+# Experiment name
+experiment: diffnest_blur_256_reflected_
+run_name: blur_long_run_1_
+
+
+# ----- #
+# Logging
+wandb_vis: False
+wandb_vis_imgs: True
+wandb_vis_imgs_freq: 5
+wandb_log_evidence_freq: 5
+# wandb_vis: (bool) Use wandb visualisation logger
+# wandb_vis_imgs: (bool) Use wandb to visualise imgs
+# wandb_vis_imgs_freq: (int) Frequency to upload img to wandb
+# wandb_log_evidence_freq: (int) Frequency to compute evidence and log it to wandb
+
+# ----- #
+# Data
+img_size: 256
+sigma: None
+dtype: uint
+# dtype can be uint (0 to 255) or float, and will afect the way sigma is interpreted
+ISNR: 20
+
+
+# ----- #
+# Inverse problem type
+inv_problem: blur
+# Inverse problem params
+blur_kernel_size: 5
+
+
+# ----- #
+# options - Nested sampling alg
+samplesL: 5
+samplesD: 5
+warm_start: True
+warm_start_coeff: 5
+verbose: True
+# samplesL: (int) Number of live samples
+# samplesD: (int) Number of discarded samples 
+# warm_start: (bool) warm start the algorithm by setting a minimum likelihood value from where to sample
+# warm_start_coeff: (int) Coefficient $a$ to compute the minimum likelihood to use for the warm start.
+#   It is computed as $a*L(x^{hat})$, where $x^{hat}$ is the pseudo inverse of the inverse problem 
+#   and $L(.)$ is the likelihood function.
+# verbose: (bool) Verbosity
+
+
+# ----- #
+# L2 ball projection algorithm options
+l2_proj_method: deepinv
+max_iter: 500
+tol: 1e-2
+optim_verbose: False
+# l2_proj_method: (str) projection methods are 'deepinv' and 'sopt'
+# max_iter: (int) Maximum number of iterations (L2 Ball projection alg)
+# tol: (float) Convergence tolerance of algorithm (L2 Ball projection alg)
+# optim_verbose: (bool) L2 ball projection ptimisation verbosity
+
+
+# ----- #
+# Diffusion params
+model_type: imagenet
+in_channels: 3
+out_channels: 3
+diffusion_steps: 100
+lambda_: 7.0
+zeta: 0.3
+noise_init: True
+reflection: True
+reflection_strategy: 1
+reflection_pos: beginning
+# model_type: (str) Type of pretrained model. Options are 'imagenet' or 'ffhq'
+# in_channels: (int) Channels in the input Tensor.
+# out_channels: (int) Channels in the output Tensor.
+# diffusion_steps: (int) Maximum number of iterations of the DiffPIR algorithm
+# lambda_: (float) Regularisation parameter
+# zeta: (float) DiffPIR parameter controling the diffusion
+# reflection: (bool) Boolean, True to use reflections, False not to use them. The other 
+#   reflection parameters are ignored if in False.
+# reflection_strategy: (int) `1` is using the prox projection to reflect, 
+#   `2` reflects using the boundary's normal at the intersection, 
+#   if `3` the reflection is done using the boundary's normal but 
+#   from the point outside the boundary without computing the 
+#   intersection with the boundary. 
+# reflection_pos: (str) Position to reflect. If "beggining", it is applied to x0  
+#   after the score is computed. If "end", it is applied at the last line  
+#   of the reverse diffusion step. 
