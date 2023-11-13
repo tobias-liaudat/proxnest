@@ -3,6 +3,19 @@ import torch
 import deepinv as dinv
 
 
+def l2_boundary_indicator(x, y, physics, radius):
+    """L2 ball boundary indicator
+
+    Returns `True` if x is inside the L2 ball.
+    """
+    l2_norm = torch.linalg.norm(y - physics.A(x))
+
+    if l2_norm <= radius:
+        return True
+    else:
+        return False
+
+
 class CustomIndicatorL2(dinv.optim.data_fidelity.DataFidelity):
     r"""
     Indicator of :math:`\ell_2` ball with radius :math:`r`.
