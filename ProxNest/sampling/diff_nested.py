@@ -51,6 +51,14 @@ class DiffusionNestedSampling(torch.nn.Module):
             self.Xcur, self.y, self.physics, self.diff_params['sigma_noise']
         ).cpu().numpy() # * 1e-1
 
+        # Compute likelihood of the pseudoinverse of the solution
+        self.x_pseudo_logLikeL = self.LogLikeliL(
+                    self.physics.A_adjoint(self.y),
+                    self.y,
+                    self.physics,
+                    self.diff_params['sigma_noise']
+        ).detach().cpu().numpy()
+
         # Logging to wandb
         if self.options['wandb_vis']:
             wandb.login()
@@ -250,14 +258,8 @@ class DiffusionNestedSampling(torch.nn.Module):
         if self.options['warm_start']:
             # If we're using a warm start, initialise the constrained prior sampler to the 
             # correct value
-            # Compute pseudoinverse of the solution
-            x_pseudo = self.physics.A_adjoint(self.y)
-            # Compute likelihood
-            x_pseudo_logLikeL = self.LogLikeliL(
-                        x_pseudo, self.y, self.physics, self.diff_params['sigma_noise']
-            ).detach().cpu().numpy()
             # Update the constraint
-            x_pseudo_tau = - x_pseudo_logLikeL * self.options['warm_start_coeff']
+            x_pseudo_tau = - self.x_pseudo_logLikeL * self.options['warm_start_coeff']
             self.update_likelihood_constraint(x_pseudo_tau)
 
         # Obtain samples from priors
@@ -347,12 +349,13 @@ class DiffusionNestedSampling(torch.nn.Module):
 
                 # check if the new sample is inside l2-ball (metropolis-hasting);
                 # if not, force the new sample into L2-ball
-                if torch.linalg.norm(
-                    self.y - self.physics.A(self.Xcur)
-                ) > (
-                    np.sqrt(tau * 2 * self.diff_params['sigma_noise']**2) + self.l2_optim_options['tol']
-                ):
-                    print('Explicitly enforcing L2 ball.')
+                constraint_radius = np.sqrt(tau * 2 * self.diff_params['sigma_noise']**2) + self.l2_optim_options['tol']
+                curr_radius = torch.linalg.norm(self.y - self.physics.A(self.Xcur))
+                if curr_radius > constraint_radius:
+                    print('Explicitly enforcing L2 ball. Constraint: {}, Current radius: {}'.format(
+                        constraint_radius,
+                        curr_radius
+                    ))
                     indicatorL2 = CustomIndicatorL2(
                         radius=(np.sqrt(
                             tau * 2 * self.diff_params['sigma_noise']**2
@@ -372,7 +375,7 @@ class DiffusionNestedSampling(torch.nn.Module):
                     ) > (
                         np.sqrt(tau * 2 * self.diff_params['sigma_noise']**2) + self.l2_optim_options['tol']
                     ):
-                        print("Sample is not inside the L2 ball!\nball_radius={}, sample_radius={}".format(
+                        print("Sample is not inside the L2 ball!\nFinal values: Constraint: {}, Current radius: {}".format(
                             np.sqrt(tau * 2 * self.diff_params['sigma_noise']**2),
                             torch.linalg.norm(self.y - self.physics.A(self.Xcur)),
                             )
@@ -384,7 +387,11 @@ class DiffusionNestedSampling(torch.nn.Module):
                 self.Xtrace["DiscardL"][k] = self.Xtrace["LiveSetL"][-1].copy()
 
                 if self.options['wandb_vis']:
-                    wandb.log({"Discarded - log Likelihood value": - self.Xtrace["LiveSetL"][-1].copy()})
+                    wandb.log(
+                        {"Discarded: log likelihood ratio (discarted/max_likelihood)": (
+                            self.Xtrace["LiveSetL"][-1].copy()/self.x_pseudo_logLikeL
+                        )}
+                    )
 
                 # Add the new sample to the live set and its likelihood
                 self.Xtrace["LiveSet"][-1] = self.Xcur.clone()
