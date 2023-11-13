@@ -36,7 +36,7 @@ blur_kernel_size: 5
 
 # ----- #
 # options - Nested sampling alg
-samplesL: 1000
+samplesL: 500
 samplesD: 10000
 warm_start: True
 warm_start_coeff: 10
@@ -53,8 +53,8 @@ verbose: True
 # ----- #
 # L2 ball projection algorithm options
 l2_proj_method: deepinv
-max_iter: 500
-tol: 1e-1
+max_iter: 400
+tol: 1e-2
 optim_verbose: False
 # l2_proj_method: (str) projection methods are 'deepinv' and 'sopt'
 # max_iter: (int) Maximum number of iterations (L2 Ball projection alg)

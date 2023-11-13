@@ -36,7 +36,7 @@ blur_kernel_size: 5
 
 # ----- #
 # options - Nested sampling alg
-samplesL: 1000
+samplesL: 500
 samplesD: 10000
 warm_start: False
 warm_start_coeff: 5
