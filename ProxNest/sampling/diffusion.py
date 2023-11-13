@@ -167,6 +167,24 @@ class ReflectedDiffPIR(nn.Module):
             sqrt_recipm1_alphas_cumprod,
         )
 
+    
+    def reflect(self, x, y, physics):
+        """ Reflect on the boundary
+
+        """
+        # Compute projection based on the data fidelity prox
+        x_proj = x / 2 + 0.5
+        x_proj = self.data_fidelity.prox(
+            x_proj, y, physics
+        )
+        x_proj = x_proj * 2 - 1
+
+        # Reflection step (based on projection operator)
+        x = x + 5 * (x_proj - x.clone())
+
+        return x
+
+
     def forward(
         self,
         y,
@@ -225,15 +243,16 @@ class ReflectedDiffPIR(nn.Module):
 
                     # Check if the x0 is outside the boundary
                     if not self.boundary_indicator(x0):
-                        # Compute projection based on the data fidelity prox
-                        x0_proj = x0.clone() / 2 + 0.5
-                        x0_proj = self.data_fidelity.prox(
-                            x0_proj, y, physics, gamma=1 / (2 * self.rhos[t_i])
-                        )
-                        x0_proj = x0_proj * 2 - 1
+                        x0 = self.reflect(x0.clone(), y, physics)
+                        # # Compute projection based on the data fidelity prox
+                        # x0_proj = x0.clone() / 2 + 0.5
+                        # x0_proj = self.data_fidelity.prox(
+                        #     x0_proj, y, physics, gamma=1 / (2 * self.rhos[t_i])
+                        # )
+                        # x0_proj = x0_proj * 2 - 1
 
-                        # Reflection step (based on projection operator)
-                        x0 = x0 + 2 * (x0.clone() - x0_proj)
+                        # # Reflection step (based on projection operator)
+                        # x0 = x0 + 2 * (x0_proj - x0.clone())
 
                     # Sampling step
                     t_im1 = self.find_nearest(
